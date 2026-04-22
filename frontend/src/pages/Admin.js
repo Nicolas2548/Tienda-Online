@@ -26,7 +26,7 @@ function ProductForm({ product, onSave, onCancel }) {
     try {
       const data = { ...form, price: parseFloat(form.price), stock: parseInt(form.stock) };
       if (product) {
-        await fetch(`http://localhost:8002/products/${product.id}`, {
+        await fetch(`http://147.182.165.71:8002/products/${product.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -35,7 +35,7 @@ function ProductForm({ product, onSave, onCancel }) {
           body: JSON.stringify(data)
         }).then(r => { if (!r.ok) throw new Error('Error al actualizar'); return r.json(); });
       } else {
-        await fetch('http://localhost:8002/products', {
+        await fetch('http://147.182.165.71:8002/products', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -125,14 +125,14 @@ export default function Admin() {
 
   const fetchOrders = () => {
     setLoading(true);
-    fetch('http://localhost:8004/orders/admin/all', {
+    fetch('http://147.182.165.71:8004/orders/admin/all', {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     }).then(r => r.json()).then(setOrders).finally(() => setLoading(false));
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar este producto?')) return;
-    await fetch(`http://localhost:8002/products/${id}`, {
+    await fetch(`http://147.182.165.71:8002/products/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
@@ -140,7 +140,7 @@ export default function Admin() {
   };
 
   const handleStatusChange = async (orderId, status) => {
-    await fetch(`http://localhost:8004/orders/${orderId}/status`, {
+    await fetch(`http://147.182.165.71:8004/orders/${orderId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
