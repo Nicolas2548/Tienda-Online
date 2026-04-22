@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-sql
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'customer',
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        description TEXT,
+        price NUMERIC(10,2) NOT NULL,
+        stock INTEGER DEFAULT 0,
+        category VARCHAR(100),
+        image_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS carts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS cart_items (
+        id SERIAL PRIMARY KEY,
+        cart_id INTEGER REFERENCES carts(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id),
+        quantity INTEGER NOT NULL DEFAULT 1,
+        added_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        total NUMERIC(10,2) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id),
+        quantity INTEGER NOT NULL,
+        unit_price NUMERIC(10,2) NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id),
+        amount NUMERIC(10,2) NOT NULL,
+        method VARCHAR(50) DEFAULT 'card',
+        status VARCHAR(50) DEFAULT 'pending',
+        transaction_id VARCHAR(100),
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    INSERT INTO products (name, description, price, stock, category, image_url) VALUES
+      ('Laptop Pro 15"', 'Laptop de alto rendimiento con procesador i7', 1299.99, 20, 'Electronics', 'https://via.placeholder.com/300x200?text=Laptop'),
+      ('Mouse Inalámbrico', 'Mouse ergonómico con 3 años de batería', 39.99, 100, 'Electronics', 'https://via.placeholder.com/300x200?text=Mouse'),
+      ('Teclado Mecánico', 'Teclado mecánico RGB switches Cherry MX', 89.99, 50, 'Electronics', 'https://via.placeholder.com/300x200?text=Teclado'),
+      ('Monitor 27" 4K', 'Monitor 4K con panel IPS y 144Hz', 499.99, 15, 'Electronics', 'https://via.placeholder.com/300x200?text=Monitor'),
+      ('Auriculares BT', 'Cancelación activa de ruido, 30h batería', 149.99, 35, 'Electronics', 'https://via.placeholder.com/300x200?text=Auriculares'),
+      ('Mochila Laptop', 'Mochila impermeable para laptop hasta 17"', 59.99, 60, 'Accessories', 'https://via.placeholder.com/300x200?text=Mochila'),
+      ('Webcam 1080p', 'Webcam Full HD con micrófono incorporado', 79.99, 40, 'Electronics', 'https://via.placeholder.com/300x200?text=Webcam'),
+      ('Hub USB-C', 'Hub 7 en 1 con HDMI, USB 3.0 y carga rápida', 45.99, 80, 'Electronics', 'https://via.placeholder.com/300x200?text=Hub')
+    ON CONFLICT DO NOTHING;

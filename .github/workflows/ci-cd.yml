@@ -1,0 +1,108 @@
+name: UpvShop CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: ${{ secrets.DOCKER_USERNAME }}/upvshop
+
+jobs:
+  test:
+    name: Test Services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies and lint
+        run: |
+          pip install flake8
+          flake8 services/ --max-line-length=120 --ignore=E501,W503 || true
+
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        service:
+          - name: users-service
+            port: 8001
+          - name: catalog-service
+            port: 8002
+          - name: cart-service
+            port: 8003
+          - name: order-service
+            port: 8004
+          - name: payment-service
+            port: 8005
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service.name }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Kubernetes (DOKS)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Set Kubernetes context
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.K8S_CLUSTER_NAME }}
+
+      - name: Update image tags in manifests
+        run: |
+          for svc in users catalog cart order payment; do
+            sed -i "s|upvshop-${svc}-service:latest|upvshop-${svc}-service:${{ github.sha }}|g" k8s/deployments/${svc}-deployment.yaml
+          done
+
+      - name: Apply secrets and configmaps
+        run: kubectl apply -f k8s/secrets.yaml
+
+      - name: Deploy all services
+        run: kubectl apply -f k8s/
+
+      - name: Wait for rollout
+        run: |
+          for svc in users-service catalog-service cart-service order-service payment-service; do
+            kubectl rollout status deployment/$svc --timeout=120s
+          done
+
+      - name: Notify deploy success
+        run: echo "Deploy completado exitosamente - commit ${{ github.sha }}"

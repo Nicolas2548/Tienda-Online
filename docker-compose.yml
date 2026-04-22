@@ -1,0 +1,132 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    container_name: upvshop-db
+    restart: always
+    environment:
+      POSTGRES_DB: upvshop
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d upvshop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  users-service:
+    build: ./services/users-service
+    container_name: upvshop-users
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+      JWT_SECRET: upvshop-super-secret-jwt-key-2024
+      SERVICE_NAME: users-service
+    depends_on:
+      db:
+        condition: service_healthy
+
+  catalog-service:
+    build: ./services/catalog-service
+    container_name: upvshop-catalog
+    restart: always
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+      JWT_SECRET: upvshop-super-secret-jwt-key-2024
+      SERVICE_NAME: catalog-service
+    depends_on:
+      db:
+        condition: service_healthy
+
+  cart-service:
+    build: ./services/cart-service
+    container_name: upvshop-cart
+    restart: always
+    ports:
+      - "8003:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+      JWT_SECRET: upvshop-super-secret-jwt-key-2024
+      SERVICE_NAME: cart-service
+    depends_on:
+      db:
+        condition: service_healthy
+
+  order-service:
+    build: ./services/order-service
+    container_name: upvshop-orders
+    restart: always
+    ports:
+      - "8004:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+      JWT_SECRET: upvshop-super-secret-jwt-key-2024
+      PAYMENT_SERVICE_URL: http://payment-service:8000
+      SERVICE_NAME: order-service
+    depends_on:
+      db:
+        condition: service_healthy
+
+  payment-service:
+    build: ./services/payment-service
+    container_name: upvshop-payments
+    restart: always
+    ports:
+      - "8005:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+      JWT_SECRET: upvshop-super-secret-jwt-key-2024
+      ORDER_SERVICE_URL: http://order-service:8000
+      SERVICE_NAME: payment-service
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: upvshop-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - users-service
+      - catalog-service
+      - cart-service
+      - order-service
+      - payment-service
+
+  setup:
+    build: ./services/users-service
+    container_name: upvshop-setup
+    command: python3 create_admin.py
+    environment:
+      DATABASE_URL: postgresql://admin:secret123@db:5432/upvshop
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: upvshop-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@upvshop.com
+      PGADMIN_DEFAULT_PASSWORD: Admin123!
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
