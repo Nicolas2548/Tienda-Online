@@ -1,9 +1,9 @@
 const BASE = {
-  users:   'http://localhost:8001',
-  catalog: 'http://localhost:8002',
-  cart:    'http://localhost:8003',
-  orders:  'http://localhost:8004',
-  payments:'http://localhost:8005',
+  users:   'http://147.182.165.71:8001',
+  catalog: 'http://147.182.165.71:8002',
+  cart:    'http://147.182.165.71:8003',
+  orders:  'http://147.182.165.71:8004',
+  payments:'http://147.182.165.71:8005',
 };
 
 function getToken() {
